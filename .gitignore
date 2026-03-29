@@ -1,0 +1,28 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# venv
+venv/
+.venv/
+env/
+
+# PyInstaller
+dist/
+build/
+*.spec
+
+# VSCode
+.vscode/
+
+# 앱 데이터 (APPDATA에 저장되므로 불필요)
+layouts.json
+config.json
+
+# 기타
+*.ico
+*.log
+.DS_Store
+Thumbs.db
