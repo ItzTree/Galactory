@@ -9,6 +9,7 @@ from panda3d.core import (
 from direct.showbase.ShowBase import ShowBase
 
 from core.config import WINDOW_TITLE, WINDOW_WIDTH, WINDOW_HEIGHT, BG_COLOR
+from core.app_config import get_last_path, set_nav_state
 from scene.camera import CameraController
 from scene.scene import FolderScene
 from ui.hud import HUD
@@ -64,9 +65,12 @@ class App(ShowBase):
 
 
 if __name__ == "__main__":
-    folder = pick_folder()
+    folder = get_last_path()
     if not folder:
-        sys.exit(0)
+        folder = pick_folder()
+        if not folder:
+            sys.exit(0)
+        set_nav_state(folder, [])
 
     configure_panda3d()
     app = App(folder)

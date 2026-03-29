@@ -1,11 +1,22 @@
+import os
 from panda3d.core import (
     NodePath, CollisionNode, CollisionSphere, BitMask32, TextNode, LColor,
 )
 from core.config import (
-    FOLDER_COLOR, FILE_COLOR, PERMISSION_ERROR_COLOR, HOVER_COLOR,
+    FOLDER_COLOR, FILE_COLORS, FILE_COLOR_DEFAULT, PERMISSION_ERROR_COLOR,
     FOLDER_SCALE, FILE_SCALE,
 )
 from core.filesystem import FileEntry
+
+
+def _file_color(name: str) -> tuple:
+    ext = os.path.splitext(name)[1].lstrip(".").lower()
+    return FILE_COLORS.get(ext, FILE_COLOR_DEFAULT)
+
+
+def _brighten(color: tuple) -> tuple:
+    """Blend color toward white by 40% for hover highlight."""
+    return tuple(min(c + 0.4, 1.0) for c in color[:3]) + (color[3],)
 
 # Bit mask used exclusively for mouse-picking collisions
 PICK_MASK = BitMask32.bit(1)
@@ -25,7 +36,7 @@ class ExplorerNode:
         elif self.is_dir:
             color = FOLDER_COLOR
         else:
-            color = FILE_COLOR
+            color = _file_color(entry.name)
 
         scale = FOLDER_SCALE if self.is_dir else FILE_SCALE
         self._base_color = color
@@ -68,7 +79,8 @@ class ExplorerNode:
         self.root.setPythonTag("xnode", self)
 
     def set_hover(self, hovered: bool) -> None:
-        self._model.setColor(LColor(*(HOVER_COLOR if hovered else self._base_color)))
+        color = _brighten(self._base_color) if hovered else self._base_color
+        self._model.setColor(LColor(*color))
 
     def cleanup(self) -> None:
         self.root.removeNode()
