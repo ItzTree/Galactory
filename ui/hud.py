@@ -1,3 +1,4 @@
+import datetime
 from direct.gui.OnscreenText import OnscreenText
 from panda3d.core import TextNode
 
@@ -48,7 +49,7 @@ class HUD:
 
         # Hint bar (bottom-center, permanent)
         OnscreenText(
-            text="[클릭] 폴더 진입   [ESC] 뒤로   [드래그] 회전   [스크롤] 줌",
+            text="[클릭] 폴더진입/파일열기   [ESC] 뒤로   [드래그] 회전·노드이동   [스크롤] 줌",
             pos=(0.0, -0.93),
             scale=0.050,
             fg=(0.65, 0.65, 0.65, 1.0),
@@ -56,6 +57,19 @@ class HUD:
             align=TextNode.ACenter,
             font=font,
         )
+
+        # Tooltip (bottom-left, above hint bar)
+        self._tooltip = OnscreenText(
+            text="",
+            pos=(-1.70, -0.82),
+            scale=0.048,
+            fg=(0.9, 0.9, 0.9, 1.0),
+            shadow=(0.0, 0.0, 0.0, 0.8),
+            align=TextNode.ALeft,
+            mayChange=True,
+            font=font,
+        )
+        self._tooltip.hide()
 
     # ------------------------------------------------------------------
     def set_path(self, path: str) -> None:
@@ -67,3 +81,30 @@ class HUD:
 
     def set_empty(self, empty: bool) -> None:
         (self._empty_label.show if empty else self._empty_label.hide)()
+
+    def set_tooltip(self, entry) -> None:
+        """Show tooltip for an ExplorerNode's FileEntry, or hide if entry is None."""
+        if entry is None:
+            self._tooltip.hide()
+            return
+        if entry.is_dir:
+            type_str = "폴더"
+        else:
+            type_str = _fmt_size(entry.size)
+        if entry.mtime:
+            dt_str = datetime.datetime.fromtimestamp(entry.mtime).strftime("%Y-%m-%d %H:%M")
+        else:
+            dt_str = ""
+        parts = [type_str]
+        if dt_str:
+            parts.append(dt_str)
+        self._tooltip.setText("  ".join(parts))
+        self._tooltip.show()
+
+
+def _fmt_size(size: int) -> str:
+    for unit in ("B", "KB", "MB", "GB"):
+        if size < 1024:
+            return f"{size:.0f} {unit}"
+        size /= 1024
+    return f"{size:.1f} TB"

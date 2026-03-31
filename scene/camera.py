@@ -39,6 +39,8 @@ class CameraController:
         self.base.camera.lookAt(0, 0, 0)
 
     def _on_press(self) -> None:
+        if getattr(self.base, "node_drag_active", False):
+            return
         if self.base.mouseWatcherNode.hasMouse():
             m = self.base.mouseWatcherNode.getMouse()
             self._press_x = self._last_x = m.x
@@ -60,7 +62,7 @@ class CameraController:
     def _drag_task(self, task):
         # 버튼 상태를 매 프레임 직접 확인 (mouse1-up 이벤트 누락 방지)
         btn_down = self.base.mouseWatcherNode.isButtonDown(MouseButton.one())
-        if not btn_down:
+        if not btn_down or getattr(self.base, "node_drag_active", False):
             self._dragging = False
 
         if not self._dragging or not self.base.mouseWatcherNode.hasMouse():

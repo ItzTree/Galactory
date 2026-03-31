@@ -1,7 +1,9 @@
 import json
 import os
 
-_CONFIG_PATH = os.path.join(os.environ.get("APPDATA", ""), "3DExplorer", "config.json")
+_APPDATA_DIR = os.path.join(os.environ.get("APPDATA", ""), "Galactory")
+_CONFIG_PATH = os.path.join(_APPDATA_DIR, "config.json")
+_LAYOUTS_PATH = os.path.join(_APPDATA_DIR, "layouts.json")
 
 
 def _load() -> dict:
@@ -14,8 +16,35 @@ def _load() -> dict:
 
 def _save(data: dict) -> None:
     try:
-        os.makedirs(os.path.dirname(_CONFIG_PATH), exist_ok=True)
+        os.makedirs(_APPDATA_DIR, exist_ok=True)
         with open(_CONFIG_PATH, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+    except Exception:
+        pass
+
+
+# ── layouts.json ──────────────────────────────────────────────────────────────
+
+def load_layout(folder_path: str) -> dict:
+    """Return saved {filename: [x, y, z]} for folder_path, or {}."""
+    try:
+        with open(_LAYOUTS_PATH, encoding="utf-8") as f:
+            return json.load(f).get(folder_path, {})
+    except Exception:
+        return {}
+
+
+def save_layout(folder_path: str, positions: dict) -> None:
+    """Merge {filename: [x,y,z]} into layouts.json for folder_path."""
+    try:
+        try:
+            with open(_LAYOUTS_PATH, encoding="utf-8") as f:
+                data = json.load(f)
+        except Exception:
+            data = {}
+        data[folder_path] = positions
+        os.makedirs(_APPDATA_DIR, exist_ok=True)
+        with open(_LAYOUTS_PATH, "w", encoding="utf-8") as f:
             json.dump(data, f, ensure_ascii=False, indent=2)
     except Exception:
         pass
