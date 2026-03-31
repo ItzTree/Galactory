@@ -28,7 +28,8 @@ Galactory/
 │   └── app_config.py        # config.json (last_path, nav_stack), layouts.json (노드 위치) 읽기/쓰기
 ├── scene/
 │   ├── layout_algo.py       # 황금각 기반 구면 배치 (golden_sphere_positions)
-│   ├── node.py              # ExplorerNode 클래스 (구 모델, 라벨, 충돌 구, 호버)
+│   ├── sphere_mesh.py       # make_sphere() — 고폴리곤 UV 구체 생성, add_glow_card() — additive glow 디스크
+│   ├── node.py              # ExplorerNode 클래스 (구 모델, 라벨, 충돌 구, 호버, glow)
 │   ├── camera.py            # 궤도 카메라 (드래그 회전, 스크롤 줌, 클릭 판별)
 │   └── scene.py             # FolderScene (씬 빌드, 노드 드래그, 클릭/더블클릭, 툴팁, ESC 복귀)
 ├── ui/
@@ -51,7 +52,7 @@ Galactory/
 - 카메라 드래그: `isButtonDown(MouseButton.one())` 매 프레임 체크 (이벤트 누락 방지)
 - 백그라운드 스캔 완료 후 `taskMgr.doMethodLater(0, ...)` 로 메인 스레드에 마샬링
 - 노드 피킹: `CollisionRay` + `PICK_MASK = BitMask32.bit(1)`, `xnode` PythonTag로 객체 역참조
-- 구 모델: `loader.loadModel("models/misc/sphere")`
+- 구 모델: `sphere_mesh.make_sphere()` — 32슬라이스×16스택 UV 구체 (Panda3D 내장 저폴리 구체 대체)
 - 중심 행성: `scene.py`의 `_build_center_planet()`에서 생성, 피킹 충돌 없음, `TransparencyAttrib.MAlpha` + `setDepthWrite(False)`로 반투명 처리
 - 호버 하이라이트: 고정 색 대신 `_brighten()` (RGB +0.4, 흰색 방향 블렌드)
 - 파일 색상: `config.py`의 `FILE_COLORS` 딕셔너리 (확장자 → 카테고리별 색), `node.py`의 `_file_color(name)`으로 조회
@@ -59,6 +60,10 @@ Galactory/
 - 노드 드래그: ray-sphere intersection으로 구 표면 위 이동, 드래그 완료 시만 `layouts.json` 저장
 - 더블클릭: 0.35초 이내 동일 노드 2회 클릭 → 파일은 `os.startfile()`, 폴더는 첫 클릭에 진입
 - 툴팁: 호버 변경 시 `hud.set_tooltip(entry)` 호출, 파일 크기·수정일 표시
+- 구체 발광 효과: 모든 구체에 `setLightOff()` (씬 조명 무시, 자체 발광처럼 보임) + `add_glow_card()` (additive 블렌딩 빌보드 glow)
+- glow 구현: `sphere_mesh.py`의 vertex color 그라디언트 디스크 메시 (7개 동심원 링, alpha 1.0→0.0 Gaussian 감쇠), `ColorBlendAttrib(MAdd, OIncomingAlpha, OOne)`, `_GLOW_GEOM` 모듈 캐시로 Geom 공유
+- glow 주의: `setColor()`는 vertex color를 덮어쓰므로 glow 노드에는 반드시 `setColorScale()` 사용 (vertex alpha 보존)
+- `add_glow_card()` 시그니처: `(parent_np, color, sphere_scale, intensity=1.0, radius_multiplier=3.0)` — intensity(0~1)는 전체 밝기, radius_multiplier는 구체 반지름 대비 halo 크기 배율. 현재 node.py·scene.py 호출부는 `radius_multiplier=2.2` 사용
 
 ## 코딩 규칙
 

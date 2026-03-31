@@ -6,7 +6,7 @@ from typing import List, Optional
 from panda3d.core import (
     CollisionTraverser, CollisionRay, CollisionNode,
     CollisionHandlerQueue, BitMask32, NodePath,
-    TransparencyAttrib, LColor, TextNode, Point3,
+    LColor, TextNode, Point3,
 )
 
 from core.filesystem import FileEntry, scan_directory
@@ -14,7 +14,7 @@ from core.config import SPHERE_RADIUS, MAX_NODES, CENTER_PLANET_SCALE, CENTER_PL
 from core.app_config import get_nav_stack, set_nav_state, load_layout, save_layout
 from scene.layout_algo import golden_sphere_positions
 from scene.node import ExplorerNode, PICK_MASK
-from scene.sphere_mesh import make_sphere
+from scene.sphere_mesh import make_sphere, add_glow_card
 
 _DOUBLE_CLICK_INTERVAL = 0.35  # seconds
 
@@ -108,10 +108,21 @@ class FolderScene:
 
         model = make_sphere()
         model.setScale(CENTER_PLANET_SCALE)
-        model.setColor(LColor(*CENTER_PLANET_COLOR))
-        model.setTransparency(TransparencyAttrib.MAlpha)
-        model.setDepthWrite(False)
+        r, g, b = CENTER_PLANET_COLOR[0], CENTER_PLANET_COLOR[1], CENTER_PLANET_COLOR[2]
+        cr = min(r * 0.35 + 0.65, 1.0)
+        cg = min(g * 0.35 + 0.65, 1.0)
+        cb = min(b * 0.35 + 0.65, 1.0)
+        model.setColor(LColor(cr, cg, cb, 1.0))
+        model.setLightOff()
         model.reparentTo(np)
+
+        # Core hotspot: pure white, smaller than sphere — bright spot on surface
+        _core = add_glow_card(np, (1.0, 1.0, 1.0, 1.0), CENTER_PLANET_SCALE, intensity=0.2, radius_multiplier=0.3)
+        _core.setDepthTest(False)
+        # Inner bloom: warm white, tight
+        add_glow_card(np, (1.0, 0.97, 0.9, 1.0), CENTER_PLANET_SCALE, intensity=1.0, radius_multiplier=1.1)
+        # Outer halo: color, moderate width
+        add_glow_card(np, CENTER_PLANET_COLOR, CENTER_PLANET_SCALE, intensity=0.65, radius_multiplier=2.0)
 
         label_text = (folder_name[:18] + "..") if len(folder_name) > 20 else folder_name
         tn = TextNode("center_lbl")

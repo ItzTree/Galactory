@@ -7,7 +7,7 @@ from core.config import (
     FOLDER_SCALE, FILE_SCALE,
 )
 from core.filesystem import FileEntry
-from scene.sphere_mesh import make_sphere
+from scene.sphere_mesh import make_sphere, add_glow_card
 
 
 def _file_color(name: str) -> tuple:
@@ -19,8 +19,21 @@ def _brighten(color: tuple) -> tuple:
     """Blend color toward white by 40% for hover highlight."""
     return tuple(min(c + 0.4, 1.0) for c in color[:3]) + (color[3],)
 
+
+def _to_core_color(color: tuple) -> tuple:
+    """Blend color 65% toward white for the hot-core sphere appearance."""
+    return (
+        min(color[0] * 0.35 + 0.65, 1.0),
+        min(color[1] * 0.35 + 0.65, 1.0),
+        min(color[2] * 0.35 + 0.65, 1.0),
+        color[3],
+    )
+
+
 # Bit mask used exclusively for mouse-picking collisions
 PICK_MASK = BitMask32.bit(1)
+
+_INNER_GLOW_COLOR = (1.0, 0.97, 0.9, 1.0)  # warm white for inner bloom
 
 
 class ExplorerNode:
@@ -45,12 +58,22 @@ class ExplorerNode:
         # Root transform node
         self.root = parent_np.attachNewNode(f"xnode_{index}")
 
-        # Sphere visual
+        # Sphere visual — near-white core (hot star appearance)
         model = make_sphere()
         model.setScale(scale)
-        model.setColor(LColor(*color))
+        model.setColor(LColor(*_to_core_color(color)))
+        model.setLightOff()
         model.reparentTo(self.root)
         self._model = model
+
+        # Core hotspot: pure white, smaller than sphere — bright spot on surface
+        # setDepthTest(False) required: sphere writes depth, hotspot must ignore it to render on top
+        _core = add_glow_card(self.root, (1.0, 1.0, 1.0, 1.0), scale, intensity=0.2, radius_multiplier=0.3)
+        _core.setDepthTest(False)
+        # Inner bloom: warm white, tight — simulates overexposed core
+        self._glow_inner = add_glow_card(self.root, _INNER_GLOW_COLOR, scale, intensity=1.0, radius_multiplier=1.1)
+        # Outer halo: original color, moderate width
+        self._glow_outer = add_glow_card(self.root, color, scale, intensity=0.65, radius_multiplier=2.0)
 
         # Text label (billboarded, unlit)
         label_text = (self.name[:18] + "..") if len(self.name) > 20 else self.name
@@ -80,8 +103,9 @@ class ExplorerNode:
         self.root.setPythonTag("xnode", self)
 
     def set_hover(self, hovered: bool) -> None:
-        color = _brighten(self._base_color) if hovered else self._base_color
-        self._model.setColor(LColor(*color))
+        base = _brighten(self._base_color) if hovered else self._base_color
+        self._model.setColor(LColor(*_to_core_color(base)))
+        self._glow_outer.setColorScale(*base[:3], 1.0)
 
     def cleanup(self) -> None:
         self.root.removeNode()

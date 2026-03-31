@@ -2,14 +2,84 @@ import math
 from panda3d.core import (
     GeomVertexFormat, GeomVertexData, GeomVertexWriter,
     GeomTriangles, Geom, GeomNode, NodePath,
+    ColorBlendAttrib, TransparencyAttrib,
 )
 
+# Cached glow disc Geom (geometry shared across all glow instances)
+_GLOW_GEOM: Geom | None = None
+
+
+def _build_glow_geom(segments: int = 48) -> Geom:
+    """Flat disc in the XZ plane with radial vertex-color alpha gradient.
+
+    Rings go from bright center (alpha≈0.9) to fully transparent outer edge.
+    Uses white vertex colors; tint with setColorScale() when attaching.
+    """
+    # (radius, alpha) rings — soft Gaussian glow profile
+    rings = [
+        (0.00, 1.00),
+        (0.10, 0.85),
+        (0.25, 0.65),
+        (0.45, 0.40),
+        (0.65, 0.18),
+        (0.85, 0.05),
+        (1.00, 0.00),
+    ]
+
+    fmt = GeomVertexFormat.getV3c4()
+    vdata = GeomVertexData("glow_disc", fmt, Geom.UHStatic)
+    vw = GeomVertexWriter(vdata, "vertex")
+    cw = GeomVertexWriter(vdata, "color")
+
+    # Vertex 0: center
+    vw.addData3(0, 0, 0)
+    cw.addData4(1, 1, 1, rings[0][1])
+
+    # Ring vertices (in XZ plane, Y=0 so +Y normal faces camera via billboard)
+    for radius, alpha in rings[1:]:
+        for i in range(segments):
+            theta = 2.0 * math.pi * i / segments
+            vw.addData3(radius * math.cos(theta), 0, radius * math.sin(theta))
+            cw.addData4(1, 1, 1, alpha)
+
+    tris = GeomTriangles(Geom.UHStatic)
+
+    # Fan: center → first ring  (winding: center, v2, v1 → +Y normal)
+    for i in range(segments):
+        v1 = 1 + i
+        v2 = 1 + (i + 1) % segments
+        tris.addVertices(0, v2, v1)
+
+    # Quads between consecutive rings
+    for ring_idx in range(len(rings) - 2):
+        curr = 1 + ring_idx * segments
+        nxt  = curr + segments
+        for i in range(segments):
+            v0 = curr + i
+            v1 = curr + (i + 1) % segments
+            v2 = nxt  + i
+            v3 = nxt  + (i + 1) % segments
+            tris.addVertices(v0, v2, v1)   # +Y normal
+            tris.addVertices(v1, v2, v3)   # +Y normal
+
+    geom = Geom(vdata)
+    geom.addPrimitive(tris)
+    return geom
+
+
+def _get_glow_geom() -> Geom:
+    global _GLOW_GEOM
+    if _GLOW_GEOM is None:
+        _GLOW_GEOM = _build_glow_geom()
+    return _GLOW_GEOM
+
+
+# ---------------------------------------------------------------------------
 
 def make_sphere(slices: int = 32, stacks: int = 16) -> NodePath:
     """Create a smooth UV sphere with radius 1, centered at origin.
 
     Returns a detached NodePath; call reparentTo() to attach it.
-    slices/stacks controls polygon density (higher = smoother).
     """
     fmt = GeomVertexFormat.getV3n3()
     vdata = GeomVertexData("sphere", fmt, Geom.UHStatic)
@@ -43,3 +113,49 @@ def make_sphere(slices: int = 32, stacks: int = 16) -> NodePath:
     node = GeomNode("sphere_geom")
     node.addGeom(geom)
     return NodePath(node)
+
+
+def add_glow_card(
+    parent_np: NodePath,
+    color: tuple,
+    sphere_scale: float,
+    intensity: float = 1.0,
+    radius_multiplier: float = 3.0,
+) -> NodePath:
+    """Attach an additive-blended billboard glow halo to *parent_np*.
+
+    color             — (R, G, B, ...) of the sphere; the halo is tinted to match.
+    sphere_scale      — visual scale of the sphere model (e.g. FOLDER_SCALE).
+    intensity         — overall glow brightness, 0.0 (none) … 1.0 (full).
+                        Scales all vertex alphas via setColorScale.
+    radius_multiplier — how many times larger than sphere_scale the halo extends.
+                        1.5~2.0 for tight glow, 3.0+ for wide nebula-style halo.
+    Returns the glow NodePath (already parented and configured).
+    """
+    node = GeomNode("glow_disc")
+    node.addGeom(_get_glow_geom())
+    glow = parent_np.attachNewNode(node)
+
+    # Tint to sphere color; intensity scales vertex alphas (preserves gradient shape)
+    r, g, b = color[0], color[1], color[2]
+    glow.setColorScale(r, g, b, max(0.0, min(1.0, intensity)))
+
+    # Halo world-space radius = sphere_scale * radius_multiplier
+    glow.setScale(sphere_scale * radius_multiplier)
+
+    # Full billboard: local Y axis always points toward camera eye
+    glow.setBillboardPointEye()
+
+    # Additive blending: output = src_color * src_alpha + existing_color
+    # This makes the glow brighten whatever is behind it (like real light).
+    glow.setTransparency(TransparencyAttrib.MAlpha)
+    glow.setAttrib(ColorBlendAttrib.make(
+        ColorBlendAttrib.MAdd,
+        ColorBlendAttrib.OIncomingAlpha,
+        ColorBlendAttrib.OOne,
+    ))
+    glow.setDepthWrite(False)
+    glow.setBin("transparent", 5)
+    glow.setLightOff()
+
+    return glow
