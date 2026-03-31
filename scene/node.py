@@ -7,6 +7,7 @@ from core.config import (
     FOLDER_SCALE, FILE_SCALE,
 )
 from core.filesystem import FileEntry
+from scene.sphere_mesh import make_sphere
 
 
 def _file_color(name: str) -> tuple:
@@ -45,7 +46,7 @@ class ExplorerNode:
         self.root = parent_np.attachNewNode(f"xnode_{index}")
 
         # Sphere visual
-        model = base.loader.loadModel("models/misc/sphere")
+        model = make_sphere()
         model.setScale(scale)
         model.setColor(LColor(*color))
         model.reparentTo(self.root)

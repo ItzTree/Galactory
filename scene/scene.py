@@ -14,6 +14,7 @@ from core.config import SPHERE_RADIUS, MAX_NODES, CENTER_PLANET_SCALE, CENTER_PL
 from core.app_config import get_nav_stack, set_nav_state, load_layout, save_layout
 from scene.layout_algo import golden_sphere_positions
 from scene.node import ExplorerNode, PICK_MASK
+from scene.sphere_mesh import make_sphere
 
 _DOUBLE_CLICK_INTERVAL = 0.35  # seconds
 
@@ -105,7 +106,7 @@ class FolderScene:
 
         np = self._root.attachNewNode("center_planet")
 
-        model = self.base.loader.loadModel("models/misc/sphere")
+        model = make_sphere()
         model.setScale(CENTER_PLANET_SCALE)
         model.setColor(LColor(*CENTER_PLANET_COLOR))
         model.setTransparency(TransparencyAttrib.MAlpha)
