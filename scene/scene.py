@@ -116,13 +116,14 @@ class FolderScene:
         model.setLightOff()
         model.reparentTo(np)
 
-        # Core hotspot: pure white, smaller than sphere — bright spot on surface
-        _core = add_glow_card(np, (1.0, 1.0, 1.0, 1.0), CENTER_PLANET_SCALE, intensity=0.2, radius_multiplier=0.3)
+        # Core hotspot: white disc covering whole sphere surface, depth test off
+        _core = add_glow_card(np, (1.0, 1.0, 1.0, 1.0), CENTER_PLANET_SCALE, intensity=0.85, radius_multiplier=1.0)
         _core.setDepthTest(False)
+        _core.setBin("transparent", 20)
         # Inner bloom: warm white, tight
         add_glow_card(np, (1.0, 0.97, 0.9, 1.0), CENTER_PLANET_SCALE, intensity=1.0, radius_multiplier=1.1)
-        # Outer halo: color, moderate width
-        add_glow_card(np, CENTER_PLANET_COLOR, CENTER_PLANET_SCALE, intensity=0.65, radius_multiplier=2.0)
+        # Outer halo: color, moderate width — hollow_center prevents depth-precision dot
+        add_glow_card(np, CENTER_PLANET_COLOR, CENTER_PLANET_SCALE, intensity=0.65, radius_multiplier=2.0, hollow_center=True)
 
         label_text = (folder_name[:18] + "..") if len(folder_name) > 20 else folder_name
         tn = TextNode("center_lbl")

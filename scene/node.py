@@ -66,14 +66,15 @@ class ExplorerNode:
         model.reparentTo(self.root)
         self._model = model
 
-        # Core hotspot: pure white, smaller than sphere — bright spot on surface
-        # setDepthTest(False) required: sphere writes depth, hotspot must ignore it to render on top
-        _core = add_glow_card(self.root, (1.0, 1.0, 1.0, 1.0), scale, intensity=0.2, radius_multiplier=0.3)
+        # Core hotspot: white disc covering whole sphere surface, depth test off
+        # alpha gradient (center 1.0 → edge 0.0) gives bright white center, planet color at edges
+        _core = add_glow_card(self.root, (1.0, 1.0, 1.0, 1.0), scale, intensity=0.85, radius_multiplier=1.0)
         _core.setDepthTest(False)
+        _core.setBin("transparent", 20)  # render on top of all other glow layers
         # Inner bloom: warm white, tight — simulates overexposed core
         self._glow_inner = add_glow_card(self.root, _INNER_GLOW_COLOR, scale, intensity=1.0, radius_multiplier=1.1)
-        # Outer halo: original color, moderate width
-        self._glow_outer = add_glow_card(self.root, color, scale, intensity=0.65, radius_multiplier=2.0)
+        # Outer halo: original color, moderate width — hollow_center prevents depth-precision dot
+        self._glow_outer = add_glow_card(self.root, color, scale, intensity=0.65, radius_multiplier=2.0, hollow_center=True)
 
         # Text label (billboarded, unlit)
         label_text = (self.name[:18] + "..") if len(self.name) > 20 else self.name
