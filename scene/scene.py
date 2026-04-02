@@ -14,7 +14,7 @@ from core.config import SPHERE_RADIUS, MAX_NODES, CENTER_PLANET_SCALE, CENTER_PL
 from core.app_config import get_nav_stack, set_nav_state, load_layout, save_layout
 from scene.layout_algo import golden_sphere_positions
 from scene.node import ExplorerNode, PICK_MASK
-from scene.sphere_mesh import make_sphere, add_glow_card
+from scene.sphere_mesh import make_sphere
 
 _DOUBLE_CLICK_INTERVAL = 0.35  # seconds
 
@@ -108,22 +108,10 @@ class FolderScene:
 
         model = make_sphere()
         model.setScale(CENTER_PLANET_SCALE)
-        r, g, b = CENTER_PLANET_COLOR[0], CENTER_PLANET_COLOR[1], CENTER_PLANET_COLOR[2]
-        cr = min(r * 0.35 + 0.65, 1.0)
-        cg = min(g * 0.35 + 0.65, 1.0)
-        cb = min(b * 0.35 + 0.65, 1.0)
-        model.setColor(LColor(cr, cg, cb, 1.0))
+        model.setColor(LColor(*CENTER_PLANET_COLOR))
         model.setLightOff()
         model.reparentTo(np)
 
-        # Core hotspot: white disc covering whole sphere surface, depth test off
-        _core = add_glow_card(np, (1.0, 1.0, 1.0, 1.0), CENTER_PLANET_SCALE, intensity=0.85, radius_multiplier=1.0)
-        _core.setDepthTest(False)
-        _core.setBin("transparent", 20)
-        # Inner bloom: warm white, tight
-        add_glow_card(np, (1.0, 0.97, 0.9, 1.0), CENTER_PLANET_SCALE, intensity=1.0, radius_multiplier=1.1)
-        # Outer halo: color, moderate width — hollow_center prevents depth-precision dot
-        add_glow_card(np, CENTER_PLANET_COLOR, CENTER_PLANET_SCALE, intensity=0.65, radius_multiplier=2.0, hollow_center=True)
 
         label_text = (folder_name[:18] + "..") if len(folder_name) > 20 else folder_name
         tn = TextNode("center_lbl")
